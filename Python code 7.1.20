@@ -1,0 +1,588 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun 28 12:12:16 2020
+
+@author: zoezirlin
+"""
+
+
+#------------------------------------------------------------------------------
+### Importation ###
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+import statsmodels.api as sm
+from scipy.stats import stats
+import seaborn as sns
+from matplotlib import rcParams
+
+casual = pd.read_csv('/Users/zoezirlin/Desktop/8451_Carbo-Loading/Carbo-Loading CSV/causal_lookup.csv')
+product = pd.read_csv('/Users/zoezirlin/Desktop/8451_Carbo-Loading/Carbo-Loading CSV/product_lookup.csv')
+store = pd.read_csv('/Users/zoezirlin/Desktop/8451_Carbo-Loading/Carbo-Loading CSV/store_lookup.csv')
+transactions = pd.read_csv('/Users/zoezirlin/Desktop/8451_Carbo-Loading/Carbo-Loading CSV/transactions.csv')
+
+casual[:10]
+product[:10]
+store[:10]
+transactions[:10]
+
+#------------------------------------------------------------------------------
+### Concatenating the data ###
+
+
+## SCRATCH WORK
+
+# third: product df has UPC
+# fourth: store df has store
+# first: master data ---> transaction df has store and upc
+# second: casual df (store and upc) ---> master data
+
+# UPC variable:     - transaction, casual, product
+# store variable:   - transaction, casual, store
+
+#inner_merged = pd.merge(transaction, product, on=['UPC'])
+#data = pd.merge(inner_merged, store, on=['STORE_ID'])
+
+#data_a = pd.merge(transactions, casual, product, on=['upc'])
+# data_a = pd.merge(transactions, store, on=['store'])
+# data_1 = pd.merge(casual, store, on=['store'])
+# # # data 1 and a = transactions, store, casual
+# # data = pd.merge(data_a, data_1, on=['upc'])
+# data_b = pd.merge(data_a, product, on=['upc'])
+# data_a = pd.merge(casual, store, on=['store'])
+
+
+## ACTUAL CONCATENATING
+
+data_b = pd.merge(transactions, store, on=['store'])
+data_b[:10]
+data_tsp = pd.merge(data_b, product, on=['upc'])
+data_tsp[:10]
+data_cs = pd.merge(casual, store, on=['store'])
+data_cs[:10]# this data set is missing casual df
+
+
+
+
+
+
+
+
+
+
+
+
+
+#------------------------------------------------------------------------------
+### Marketing Intelligence Metrics ###
+
+
+#A.	------------------------------- What is the unit market share of each brand?
+
+## SCRATCH WORK
+
+## Units sold for each pancake brand dataframe creation
+
+# UNIT_SHARE = data_tsp[['brand','commodity','units']]
+# variable = UNIT_SHARE.groupby(UNIT_SHARE.commodity)
+# unit_share_pancake = variable.get_group('pancake mixes')
+
+# pancake_units = pancake_units.dropna()
+
+# pancake_units.columns = pancake_units.columns.droplevel(0) #remove amount
+# pancake_units.columns.name = None               #remove categories
+# pancake_units = pancake_units.reset_index() 
+
+# pancake_units.columns = pancake_units.columns.droplevel(0)
+# pancake_units = pancake_units.reset_index().rename_axis(None, axis=1)
+
+
+
+
+
+
+
+## UNIT MARKET SHARE
+
+
+## Creating a dataframe for the brands and commodities by UNITS
+a_pivot_table = data_tsp.pivot_table('units', # can be replaced with sales
+                                     index = 'brand', # puts brand as the rows
+                                     columns = 'commodity', # puts commodities as the columns
+                                     aggfunc=sum) # makes the values the sums
+a_pivot_table = pd.DataFrame(data=a_pivot_table)
+
+
+
+## Units sold for each pancake brand dataframe creation
+pancake_units = a_pivot_table[['pancake mixes']]
+pancake_units = pd.DataFrame(data=pancake_units)
+pancake_units['pancake brand'] = pancake_units.index
+pancake_units = pancake_units.dropna()
+
+pancake_total_units = pancake_units['pancake mixes'].sum()
+pancake_units['pancake_unit_market_share'] = pancake_units['pancake mixes']/pancake_total_units
+
+
+
+## Units sold for each pasta brand dataframe creation
+pasta_units = a_pivot_table[['pasta']]
+pasta_units = pd.DataFrame(data=pasta_units)
+pasta_units['pasta brand'] = pasta_units.index
+pasta_units = pasta_units.dropna()
+
+pasta_total_units = pasta_units['pasta'].sum()
+pasta_units['pasta_unit_market_share'] = pasta_units['pasta']/pasta_total_units
+
+
+## Units sold for each pasta sauce brand dataframe creation
+pasta_sauce_units = a_pivot_table[['pasta sauce']]
+pasta_sauce_units = pd.DataFrame(data=pasta_sauce_units)
+pasta_sauce_units['pasta sauce brand'] = pasta_sauce_units.index
+pasta_sauce_units = pasta_sauce_units.dropna()
+
+pasta_sauce_total_units = pasta_sauce_units['pasta sauce'].sum()
+pasta_sauce_units['pasta_sauce_unit_market_share'] = pasta_sauce_units['pasta sauce']/pasta_sauce_total_units
+
+
+## Units sold for each syrup brand dataframe creation
+syrup_units = a_pivot_table[['syrups']]
+syrup_units = pd.DataFrame(data=syrup_units)
+syrup_units['syrup brand'] = syrup_units.index
+syrup_units = syrup_units.dropna()
+
+syrup_total_units = syrup_units['syrups'].sum()
+syrup_units['syrup_unit_market_share'] = syrup_units['syrups']/syrup_total_units
+
+
+## PLOTS
+plt.figure(figsize=(10, 10))
+Pancake_Unit_Market_Share_Plot = sns.barplot(y = 'pancake brand',
+                                             x = 'pancake mixes',
+                                             data = pancake_units,
+                                             palette = 'GnBu_d',
+                                            )
+Pancake_Unit_Market_Share_Plot.set_title('Pancake Brands | Kroger Unit Market Share')
+Pancake_Unit_Market_Share_Plot.set_ylabel('Brand')
+Pancake_Unit_Market_Share_Plot.set_xlabel('Kroger Unit Market Share')
+
+
+# 2. Revenue market share in Kroger stores (brand revenues/total revenues
+#         3. Household/brand penetration (households who purchased the brand (#) / total population (#)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#B. ------------------------------- What is the sales market share for each brand?
+
+
+## SALES MARKET SHARE
+
+## Creating a dataframe for the brands and commodities by SALES
+b_pivot_table = data_tsp.pivot_table('dollar_sales', # can be replaced with units
+                                     index = 'brand', # puts brand as the rows
+                                     columns = 'commodity', # puts commoodities as the columns
+                                     aggfunc=sum) # makes the values the sums
+b_pivot_table = pd.DataFrame(data=a_pivot_table)
+
+## Sales for each pancake brand dataframe creation
+pancake_sales = b_pivot_table[['pancake mixes']]
+pancake_sales = pd.DataFrame(data=pancake_sales)
+pancake_sales = pancake_sales.dropna()
+
+pancake_total_sales = pancake_units['pancake mixes'].sum()
+pancake_sales['pancake_sales_market_share'] = pancake_sales['pancake mixes']/pancake_total_units
+
+
+## Sales for each pasta brand dataframe creation
+pasta_sales = b_pivot_table[['pasta']]
+pasta_sales = pd.DataFrame(data=pasta_sales)
+pasta_sales = pasta_sales.dropna()
+
+pasta_total_sales = pasta_sales['pasta'].sum()
+pasta_sales['pasta_sales_market_share'] = pasta_sales['pasta']/pasta_total_sales
+
+
+## Sales for each pasta sauce brand dataframe creation
+pasta_sauce_sales = b_pivot_table[['pasta sauce']]
+pasta_sauce_sales = pd.DataFrame(data=pasta_sauce_sales)
+pasta_sauce_sales = pasta_sauce_sales.dropna()
+
+pasta_sauce_total_sales = pasta_sauce_sales['pasta sauce'].sum()
+pasta_sauce_sales['pasta_sauce_sales_market_share'] = pasta_sauce_sales['pasta sauce']/pasta_sauce_total_sales
+
+
+## Sales for each syrup brand dataframe creation
+syrup_sales = b_pivot_table[['syrups']]
+syrup_sales = pd.DataFrame(data=syrup_sales)
+syrup_sales = syrup_sales.dropna()
+
+syrup_total_sales = syrup_sales['syrups'].sum()
+syrup_sales['syrup_sales_market_share'] = syrup_sales['syrups']/syrup_total_sales
+
+
+
+
+# BRAND PENETRATION
+a_pivot_table = data_tsp.pivot_table('household',
+                                     index = 'brand',
+                                     columns = 'commodity',
+                                     aggfunc=sum)
+
+
+
+#B.	Did any customers first purchase an item or category using a coupon? 
+# If so, how many of these customers made additional purchases of the item or category?
+
+#C.	In two complementary categories (e.g. Pasta and Pasta Sauce), what products, 
+#if any, are commonly purchased together? Are there cross-promotional opportunities?
+
+#D. What percent of category customers are loyal to a product or brand? 
+# Is there a large percent of customers who purchase similar products 
+# within the same category but do not appear to be brand loyal? If so, 
+# can the reason for switching be detected?
+
+
+# household_penetration_AlDente = 
+    # customer buying pasta brand z/ customers buying pasta
+
+#------------------------------------------------------------------------------
+### Correlations ###
+
+
+
+corr_data_tsp = data_tsp.corr(method='pearson')
+corr_data_cs = data_cs.corr(method='pearson')
+
+
+
+#------------------------------------------------------------------------------
+### Feature Engineering and Pivot Tables for TSP Dataframe (transactions, store, product) ###
+
+
+
+data_tsp.info()
+ # 12  product_description  object 
+ # 13  commodity            object 
+ # 14  brand                object 
+ # 15  product_size         object 
+
+
+test_value_counts_brand = data_tsp['brand'].value_counts()
+data_tsp['commodity'].value_counts()
+data_tsp['commodity'] = data_tsp.commodity.map({'pasta':1,
+                                                'pasta sauce':2,
+                                                'syrups':3,
+                                                'pancake mixes':4
+                                                })
+
+## Longitudinal pivot table
+# Each commodity has how many household purchasers over the weeks recorded?
+hh_by_commodity_pivot = data_tsp.pivot_table('household',
+                                             index = 'commodity',
+                                             columns = 'week')
+
+## Longitudinal pivot table
+# Each brand has how many household purchasers over the weeks recorded?
+hh_by_brand_pivot  = data_tsp.pivot_table('household',
+                                          index = 'brand',
+                                          columns = 'week')
+# 
+
+
+## Each commodity has how many units sold over the weeks?
+commodity_by_units_pivot = data_tsp.pivot_table('units',
+                                                index = 'commodity',
+                                                columns = 'week',
+                                                aggfunc = sum)
+
+commodity_by_units_scatter = sns.catplot(x = 'commodity',
+                                             y = 'units',
+                                             data = data_tsp)
+# calculate percent change to analyze
+
+
+
+# divide weeks by years to add categories
+year = pd.cut(data_tsp['week'],[0,52,105])
+
+commodity_by_units_year_pivot = data_tsp.pivot_table('units',
+                                                index = 'commodity',
+                                                columns = year,
+                                                aggfunc=sum)
+
+# commodity	(0, 52]	(52, 105]
+# pancake mixes	142754	157892
+# pasta	1373813	1507024
+# pasta sauce	1094987	1218181
+# syrups	352866	372110
+
+# pancake unit sales increased household to household
+# pasta unit sales increased household to household
+# pasta sauce unit sales increased household to household
+# syrups unit sales increased household to household
+
+
+
+
+
+#------------------------------------------------------------------------------
+### Title fonts ###
+
+title_font = {'family':'Meiryo',
+        'color':'navy',
+        'weight':'normal',
+        'size':16
+        }
+
+secondary_font = {'family':'Meiryo',
+        'color':'navy',
+        'weight':'normal',
+        'size':14
+        }
+#fig_size = (15, 15)
+
+
+
+#------------------------------------------------------------------------------
+### Casual Dataframe ###
+
+
+
+## Gathering descriptive statistics for cont. var. of casual df
+casual_descriptives = casual.describe()
+print(casual_descriptives)
+
+
+
+## Gathering the shape of the dataframe
+casual.shape
+# (351372, 6)
+# Learning that there are 351,372 observations with 6 variables
+
+
+
+## Graphical analysis of variable counts
+
+# UPC
+
+# store number (cont.)
+
+# week (cont.)
+
+# display_desc: location of tempporary in store display containing the product
+display_values = casual['display_desc'].value_counts()
+display_values_plot = sns.countplot(y = 'display_desc',
+                                    data = casual,
+                                    palette = 'GnBu_d',
+                                    order = casual['display_desc'].value_counts().index,
+                                    )
+display_values_plot.set_title('Value Counts for Display Status')
+display_values_plot.set_ylabel('Display Status')
+display_values_plot.set_xlabel('Count')
+
+# geography
+geo_values = casual['geography'].value_counts()
+geo_values_plot = sns.countplot(y = 'geography',
+                                    data = casual,
+                                    palette = 'GnBu_d',
+                                    order = casual['geography'].value_counts().index)
+geo_values_plot.set_title('Value Counts for Geographic Area')
+geo_values_plot.set_ylabel('Geographic Area')
+geo_values_plot.set_xlabel('Count')
+
+
+
+# feature_desc: location of product on weekly mailer
+feature_values = casual['feature_desc'].value_counts()
+feature_values_plot = sns.countplot(y = 'feature_desc',
+                                    data = casual,
+                                    palette = 'GnBu_d',
+                                    order = casual['feature_desc'].value_counts().index)
+feature_values_plot.set_title('Value Counts for Feature Status')
+feature_values_plot.set_ylabel('Feature Status')
+feature_values_plot.set_xlabel('Count')
+
+
+
+
+#------------------------------------------------------------------------------
+### Product Dataframe ###
+
+
+
+## Gathering descriptive statistics for cont. var. of product df
+product_descriptives = product.describe()
+print(product_descriptives)
+
+
+
+## Gathering shape of the dataframe
+product.shape
+# 927 observations and 5 variables
+
+
+
+## Graphical analysis of variable counts 
+
+# UPC
+
+# product_description (consider dropping this from final dataframe)
+
+# commodity (4 types of carb categories)
+commodity_values = product['commodity'].value_counts()
+commodity_values_plot = sns.countplot(y = 'commodity',
+                                    data = product,
+                                    palette = 'GnBu_d',
+                                    order = product['commodity'].value_counts().index)
+commodity_values_plot.set_title('Value Counts for Product Category')
+commodity_values_plot.set_ylabel('Product')
+commodity_values_plot.set_xlabel('Count')
+
+# brand
+brand_values = product['brand'].value_counts()
+
+# product_size
+product_size_value = product_values = product['product_size'].value_counts()
+
+
+
+
+#------------------------------------------------------------------------------
+### Store Dataframe ###
+
+
+
+## Gathering descriptive statistics for cont. var. of store df
+store_descriptives = store.describe()
+print(store_descriptives)
+
+
+
+## Gathering shape of store dataframe
+store.shape
+# 387 observations, 2 variables
+
+
+
+## Analyzing variable counts
+
+# store (cont.)
+
+# store_zip_code (cont.)
+
+
+
+
+
+#------------------------------------------------------------------------------
+### Transactions Dataframe
+
+
+
+## Gathering descriptive statistics for cont. var. of transactions df
+transactions_descrptives = transactions.describe()
+print(transactions_descrptives)
+
+
+
+## Gathering shape of transactions dataframe
+transactions.shape
+
+
+
+## Graphical analysis of variable counts
+
+# UPC
+
+# dollar_sales and units
+dollar_sales_values_plot = sns.scatterplot(x = 'units',
+                                           y = 'dollar_sales',
+                                           data = transactions,
+                                           palette = 'GnBu_d')
+dollar_sales_values_plot.set_title('Value Counts for Units by Dollar Sales')
+dollar_sales_values_plot.set_ylabel('Dollar Sales')
+dollar_sales_values_plot.set_xlabel('Units')
+
+# time_of_transaction
+time_of_transaction_values_plot = sns.scatterplot(x = 'units',
+                                      y = 'time_of_transaction',
+                                      data = transactions,
+                                      palette = 'GnBu_d')
+time_of_transaction_values_plot.set_title('Value Counts for Units by Time of Transaction')
+time_of_transaction_values_plot.set_ylabel('Time of Transaction')
+time_of_transaction_values_plot.set_xlabel('Units')
+
+x = transactions['time_of_transaction']
+household_values_plot = sns.distplot(x, rug=True, hist=False)
+household_values_plot.set_title('Distribution of Time of Transactions')
+household_values_plot.set_ylabel('Time of Transaction')
+household_values_plot.set_xlabel('Distribution')
+
+# geography
+
+# week
+week_values_plot = sns.scatterplot(x = 'week',
+                                   y = 'units',
+                                   data = transactions,
+                                   palette = 'GnBu_d')
+week_values_plot.set_title('Value Counts for Units by Week')
+week_values_plot.set_ylabel('Units')
+week_values_plot.set_xlabel('Week')
+
+x = transactions['week']
+household_values_plot = sns.distplot(x, rug=True, hist=False)
+household_values_plot.set_title('Distribution of Weekly Visits')
+household_values_plot.set_ylabel('Week')
+household_values_plot.set_xlabel('Distribution')
+
+# household
+x = transactions['household']
+household_values_plot = sns.distplot(x, rug=True, hist=False)
+household_values_plot.set_title('Distribution of Household Visits')
+household_values_plot.set_ylabel('Household')
+household_values_plot.set_xlabel('Distribution')
+
+# store
+
+# basket
+
+# day
+day_values_plot = sns.scatterplot(x = 'day',
+                                   y = 'units',
+                                   data = transactions,
+                                   palette = 'GnBu_d')
+day_values_plot.set_title('Value Counts for Units by Day')
+day_values_plot.set_ylabel('Units')
+day_values_plot.set_xlabel('Day')
+
+x = transactions['day']
+day_values_plot = sns.distplot(x, rug=True, hist=False)
+day_values_plot.set_title('Distribution of Visits per Day')
+day_values_plot.set_ylabel('Day')
+day_values_plot.set_xlabel('Distribution')
+
+# coupon
+coupon_values = transactions['coupon'].value_counts()
+coupon_values_plot = sns.countplot(y = 'coupon',
+                                  data = transactions,
+                                  palette = 'GnBu_d',
+                                  order = transactions['coupon'].value_counts().index)
+coupon_values_plot.set_title('Value Counts for Presence of Coupon')
+coupon_values_plot.set_ylabel('Coupon Presence')
+coupon_values_plot.set_xlabel('Count')
+
+
